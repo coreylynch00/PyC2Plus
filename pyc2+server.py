@@ -10,7 +10,6 @@ import os
 import json
 import os
 import platform
-import readline
 
 # Disable Flask logging in terminal (noise)
 log = logging.getLogger('werkzeug')
