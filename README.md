@@ -86,39 +86,55 @@ All agent/server communication uses a simple bearer token
 When sending commands from the CLI using `send`, the server instructs the
 agent to execute the command locally. Output is displayed in the server CLI, and results saved in `history`.
 
+------------------------------------------------------------------------
+
+## Project Structure
+
+    PyC2+/
+    ├── server.py          # C2 server & operator CLI
+    ├── agents/
+    │   ├── agent.py       # Python agent
+    │   ├── agent.ps1      # PowerShell agent
+    │   └── agent.sh       # Bash agent
+    └── requirements.txt
+
+------------------------------------------------------------------------
+
 ## Requirements
 
-'''
+```
 pip install Flask
-'''
+```
 
-'''
+```
 pip install requests
-'''
+```
 
 See `requirements.txt`.
+
+------------------------------------------------------------------------
 
 ### **Usage**
 
 Set the `C2_SERVER_IP` value in each agent script so it points to your attacker (server) machine.
 
 Start the C2 server on the attacker system:
-'''
+```
 python3 pyc2+server.py
-'''
+```
 
 Execute the desired agent payload (`.py`, `.ps1`, or `.sh`) on the victim machine:
-'''
+```
 python3 pyc2+agent.py
-'''
+```
 OR
-'''
+```
 powershell -ExecutionPolicy Bypass -File pyc2+agent.ps1
-'''
+```
 OR
-'''
+```
 bash pyc2+agent.sh
-'''
+```
 
 Use the `agents` command to get a list of agentIDs.
 
