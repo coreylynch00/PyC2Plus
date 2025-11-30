@@ -88,18 +88,6 @@ agent to execute the command locally. Output is displayed in the server CLI, and
 
 ------------------------------------------------------------------------
 
-## Project Structure
-
-    PyC2+/
-    ├── server.py          # C2 server & operator CLI
-    ├── agents/
-    │   ├── agent.py       # Python agent
-    │   ├── agent.ps1      # PowerShell agent
-    │   └── agent.sh       # Bash agent
-    └── requirements.txt
-
-------------------------------------------------------------------------
-
 ## Requirements
 
 ```
@@ -138,7 +126,7 @@ bash pyc2+agent.sh
 
 Use the `agents` command to get a list of agentIDs.
 
-Use the `select` {agentID} command to start a session with the victim/agent. 
+Use the `select {agentID}` command to start a session with the victim/agent. 
 
 ------------------------------------------------------------------------
 
