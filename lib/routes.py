@@ -6,11 +6,7 @@ import platform
 import uuid
 from flask import request, jsonify
 from queue import Queue
-
-from lib.config import (
-    agents, tasks, results, result_queues,
-    AUTH_KEY, AGENT_TIMEOUT
-)
+from lib.config import agents, tasks, results, result_queues, AUTH_KEY, AGENT_TIMEOUT
 
 def auth_check(req):
     return req.headers.get("Authorization") == f"Bearer {AUTH_KEY}"
@@ -43,7 +39,7 @@ def create_routes(app):
         }
         tasks[aid] = Queue()
         results[aid] = []
-        result_queues[aid] = Queue()     # LIVE STREAM QUEUE
+        result_queues[aid] = Queue()
 
         return jsonify({"agent_id": aid})
 
