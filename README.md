@@ -7,7 +7,8 @@ agent payloads.
 
 ------------------------------------------------------------------------
 
-![alt text](image.png)
+<img src="image1.png" width="200" style="display:inline-block;">
+<img src="image2.png" width="200" style="display:inline-block;">
 
 ## Features
 
