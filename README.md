@@ -101,8 +101,8 @@ PyC2+/
 ├── lib/                       # Modular library scripts
 │   ├── routes.py              # Flask endpoints
 │   ├── cli.py                 # CLI logic
-│   ├── config.py              # Configuration & in-memory storage
-│   └── utils.py               # Helper functions
+│   ├── config.py              # Configuration & state
+│   └── utils.py               # Helper functions (run_local, save_file, etc.)
 └── agents/                    # Agent payloads
     ├── agent.py               # Python agent
     ├── agent.ps1              # PowerShell agent
