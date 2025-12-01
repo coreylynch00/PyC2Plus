@@ -14,7 +14,7 @@ agent payloads.
 ### **Modular Architecture**
 
 The project is split across multiple Python modules: 
-- `server.py` -- Entry point; runs Flask server + CLI thread
+- `pyc2plus.py` -- Entry point; runs Flask server + CLI thread
 - `routes.py` -- Flask REST API endpoints
 - `cli.py` -- Operator command-line interface
 - `utils.py` -- Helper utilities
@@ -97,7 +97,7 @@ Improved token generation and handling in development.
 ## Project Structure
 
     PyC2+/
-    ├── server.py
+    ├── pyc2plus.py
     └── lib/
         ├── routes.py
         ├── cli.py
@@ -123,7 +123,7 @@ Set the `C2_SERVER_IP` value in each agent script so it points to your attacker 
 
 Start the C2 server on the attacker system:
 ```
-python3 server.py
+python3 pyc2plus.py
 ```
 
 Execute the desired agent payload (`.py`, `.ps1`, or `.sh`) on the victim machine:
