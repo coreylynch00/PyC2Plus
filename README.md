@@ -96,17 +96,17 @@ Improved token generation and handling in development.
 
 ## Project Structure
 
-PyC2+/
-├── server.py
-├── lib/
-│   ├── routes.py
-│   ├── cli.py
-│   ├── config.py
-│   └── utils.py
-└── agents/
-    ├── agent.py
-    ├── agent.ps1
-    └── agent.sh
+    PyC2+/
+    ├── server.py
+    └── lib/
+        ├── routes.py
+        ├── cli.py
+        ├── utils.py
+        ├── storage.py
+    └── agents/
+        ├── agent.py
+        ├── agent.ps1
+        ├── agent.sh
         
 ------------------------------------------------------------------------
 
