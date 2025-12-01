@@ -5,7 +5,7 @@ import os
 import platform
 from queue import Queue
 from flask import request, jsonify
-from config import agents, tasks, results, AUTH_KEY, AGENT_TIMEOUT
+from lib.config import agents, tasks, results, AUTH_KEY, AGENT_TIMEOUT
 
 # Helper functions
 def auth_check(req):
@@ -33,6 +33,7 @@ def save_file(agent_id, filename, b64data):
 
     return filepath
 
+# Routes
 def create_routes(app):
 
     @app.route("/register", methods=["POST"])
