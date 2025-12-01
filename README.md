@@ -7,8 +7,8 @@ agent payloads.
 
 ------------------------------------------------------------------------
 
-<img src="image1.png" width="200" style="display:inline-block;">
-<img src="image2.png" width="200" style="display:inline-block;">
+| ![cli](image1.png) | ![cli2](image2.png) |
+|------------------------|------------------------|
 
 ## Features
 
