@@ -97,16 +97,16 @@ Improved token generation and handling in development.
 ## Project Structure
 
 PyC2+/
-├── server.py                  # C2 server entry point
-├── lib/                       # Modular library scripts
-│   ├── routes.py              # Flask endpoints
-│   ├── cli.py                 # CLI logic
-│   ├── config.py              # Configuration & state
-│   └── utils.py               # Helper functions (run_local, save_file, etc.)
-└── agents/                    # Agent payloads
-    ├── agent.py               # Python agent
-    ├── agent.ps1              # PowerShell agent
-    └── agent.sh               # Bash agent
+├── server.py
+├── lib/
+│   ├── routes.py
+│   ├── cli.py
+│   ├── config.py
+│   └── utils.py
+└── agents/
+    ├── agent.py
+    ├── agent.ps1
+    └── agent.sh
         
 ------------------------------------------------------------------------
 
