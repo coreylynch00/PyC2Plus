@@ -6,7 +6,7 @@ a set of cross-platform agent payloads.
 
 ------------------------------------------------------------------------
 
-![alt text](pyc2+.png)
+![cli](cli.png)
 
 ## Features
 
