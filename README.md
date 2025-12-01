@@ -39,9 +39,10 @@ Stored in `agents/`:
 
 ------------------------------------------------------------------------
 
-### **Polling System**
+### **Polling Systems**
 
-Agents beacon at configurable intervals. Intervals can be modified in `configs.py`. Set to 10s as default.
+- Server-side: Agents are considered offline if they haven’t checked in within `AGENT_TIMEOUT` seconds (configured in config.py).
+- Agent-side: Each agent checks the server for new tasks every `POLL_INTERVAL` seconds (set at the top of the agent scripts).
 
 ------------------------------------------------------------------------
 
