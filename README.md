@@ -64,7 +64,7 @@ Supports:
 - File uploads (**put**)
 - File downloads (**get**)
 
-Downloaded files go users default Downloads folder.
+Downloaded files go users `Downloads` folder.
 
 ------------------------------------------------------------------------
 
