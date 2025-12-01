@@ -121,7 +121,7 @@ Set the `C2_SERVER_IP` value in each agent script so it points to your attacker 
 
 Start the C2 server on the attacker system:
 ```
-python3 pyc2+server.py
+python3 server.py
 ```
 
 Execute the desired agent payload (`.py`, `.ps1`, or `.sh`) on the victim machine:
