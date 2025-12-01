@@ -2,8 +2,8 @@
 
 PyC2+ is a modular Python-based Command and Control (C2) framework
 designed for education and red team operations. It provides a central
-server, REST API backend, interactive operator CLI, and cross-platform
-agents.
+server, REST API backend, interactive operator CLI, and various
+agent payloads.
 
 ------------------------------------------------------------------------
 
@@ -14,10 +14,10 @@ agents.
 ### **Modular Architecture**
 
 The project is split across multiple Python modules: 
-- `server.py` -- Entry point; runs Flask server + CLI thread\
-- `routes.py` -- Flask REST API endpoints\
-- `cli.py` -- Operator command-line interface\
-- `utils.py` -- Helper utilities\
+- `server.py` -- Entry point; runs Flask server + CLI thread
+- `routes.py` -- Flask REST API endpoints
+- `cli.py` -- Operator command-line interface
+- `utils.py` -- Helper utilities
 - `configs.py` -- C2 configs and data in-memory data storage
 
 ------------------------------------------------------------------------
@@ -29,7 +29,7 @@ The project is split across multiple Python modules:
 -   Tracks `last_seen`
 -   Independent queues + history logs
 
-### **Cross‑Platform Agents**
+### **Agents Payloads**
 
 Stored in `agents/`: 
 - Python (`pyc2+agent.py`) 
@@ -58,8 +58,8 @@ Includes:
 ### **Tasking + File Transfer**
 
 Supports: 
-- Shell commands\
-- File uploads (**put**)\
+- Shell commands
+- File uploads (**put**)
 - File downloads (**get**)
 
 Downloaded files go users default Downloads folder.
@@ -68,7 +68,7 @@ Downloaded files go users default Downloads folder.
 
 ### **Result Logging**
 
--   Timestamped results\
+-   Timestamped results
 -   CLI `history` + live output `watch` supported
 
 ------------------------------------------------------------------------
@@ -88,7 +88,7 @@ Commands:
 
 ### **Authentication**
 
-Currently uses a hardcoded bearer token in . 
+Currently uses a hardcoded bearer token in `configs.py`.
 Improved token generation and handling in development.
 
 ------------------------------------------------------------------------
@@ -105,6 +105,7 @@ Improved token generation and handling in development.
         └── agent.py
         └── agent.ps1
         └── agent.sh
+        
 ------------------------------------------------------------------------
 
 ## Requirements
@@ -125,15 +126,15 @@ python3 pyc2+server.py
 
 Execute the desired agent payload (`.py`, `.ps1`, or `.sh`) on the victim machine:
 ```
-python3 pyc2+agent.py
+python3 agent.py
 ```
 OR
 ```
-powershell -ExecutionPolicy Bypass -File pyc2+agent.ps1
+powershell -ExecutionPolicy Bypass -File agent.ps1
 ```
 OR
 ```
-bash pyc2+agent.sh
+bash agent.sh
 ```
 
 Use the `agents` command to get a list of agentIDs.
