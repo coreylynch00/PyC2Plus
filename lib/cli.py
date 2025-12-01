@@ -1,8 +1,8 @@
 import time
 import os
 import json
-from config import agents, tasks, results, AGENT_TIMEOUT
-from routes import timestamp, save_file, auth_check
+from lib.config import agents, tasks, results, AGENT_TIMEOUT
+from lib.routes import timestamp, save_file, auth_check
 from subprocess import Popen, PIPE
 import base64
 import threading
