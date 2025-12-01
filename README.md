@@ -7,7 +7,7 @@ agent payloads.
 
 ------------------------------------------------------------------------
 
-![alt text](cli.png)
+![alt text](image.png)
 
 ## Features
 
