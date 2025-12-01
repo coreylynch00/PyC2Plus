@@ -18,7 +18,7 @@ The project is split across multiple Python modules:
 - `routes.py` -- Flask REST API endpoints
 - `cli.py` -- Operator command-line interface
 - `utils.py` -- Helper utilities
-- `configs.py` -- C2 configs and data in-memory data storage
+- `configs.py` -- C2 configs and in-memory data storage
 
 ------------------------------------------------------------------------
 
@@ -95,16 +95,17 @@ Improved token generation and handling in development.
 
 ## Project Structure
 
-    PyC2+/
-    ├── server.py
-    ├── routes.py
-    ├── cli.py
-    ├── utils.py
-    ├── storage.py
-    └── agents/
-        └── agent.py
-        └── agent.ps1
-        └── agent.sh
+PyC2+/
+├── server.py                  # C2 server entry point
+├── lib/                       # Modular library scripts
+│   ├── routes.py              # Flask endpoints
+│   ├── cli.py                 # CLI logic
+│   ├── config.py              # Configuration & in-memory storage
+│   └── utils.py               # Helper functions
+└── agents/                    # Agent payloads
+    ├── agent.py               # Python agent
+    ├── agent.ps1              # PowerShell agent
+    └── agent.sh               # Bash agent
         
 ------------------------------------------------------------------------
 
