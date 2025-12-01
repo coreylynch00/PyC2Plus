@@ -7,6 +7,14 @@ from subprocess import Popen, PIPE
 import base64
 import threading
 
+# ANSI colors & formatting
+RED = "\033[91m"
+GREEN = "\033[92m"
+YELLOW = "\033[93m"
+CYAN = "\033[96m"
+BOLD = "\033[1m"
+RESET = "\033[0m"
+
 def run_local(cmd):
     try:
         p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE, text=True)
@@ -18,39 +26,39 @@ def run_local(cmd):
 def start_cli():
     time.sleep(1)
 
-    print("\n" + "="*50)
+    print(CYAN + BOLD + "\n" + "="*50)
     print("                 PyC2+ CLI")
-    print("="*50)
-    print("Type 'help' for commands or 'exit' to quit.\n")
+    print("="*50 + RESET)
+    print(YELLOW + "Type 'help' for commands or 'exit' to quit.\n" + RESET)
 
     selected = None
     last_seen_index = 0
 
     def get_prompt():
         if selected:
-            return f"\n[PyC2+ | {selected}]> "
-        return "\n[PyC2+]> "
+            return f"\n{RED}[PyC2+ | {selected}]{RESET}> "
+        return f"\n{RED}[PyC2+]{RESET}> "
 
     while True:
         try:
             cmd = input(get_prompt()).strip()
         except (KeyboardInterrupt, EOFError):
-            print("\nExiting PyC2+ CLI...")
+            print(f"\n{YELLOW}Exiting PyC2+ CLI...{RESET}")
             break
 
         if not cmd:
             continue
 
         if cmd.lower() == "help":
-            print("\nAvailable commands:")
-            print("  agents                   - list all agents")
-            print("  select <id>              - select an agent")
-            print("  send <command>           - send shell command")
-            print("  put <local> <remote>     - upload file to agent")
-            print("  get <remote_path>        - download file from agent")
-            print("  history                  - show stored results")
-            print("  watch                    - live-feed incoming results")
-            print("  exit                     - quit CLI (server keeps running)\n")
+            print(CYAN + BOLD + "\nAvailable commands:" + RESET)
+            print(f"{GREEN}  agents{RESET}                   - list all agents")
+            print(f"{GREEN}  select <id>{RESET}              - select an agent")
+            print(f"{GREEN}  send <command>{RESET}           - send shell command")
+            print(f"{GREEN}  put <local> <remote>{RESET}     - upload file to agent")
+            print(f"{GREEN}  get <remote_path>{RESET}        - download file from agent")
+            print(f"{GREEN}  history{RESET}                  - show stored results")
+            print(f"{GREEN}  watch{RESET}                    - live-feed incoming results")
+            print(f"{GREEN}  exit{RESET}                     - quit CLI (server keeps running)\n")
             continue
 
         if cmd.lower() == "agents":
@@ -59,11 +67,11 @@ def start_cli():
                 if time.time() - info["last_seen"] <= AGENT_TIMEOUT
             ]
             if not live_agents:
-                print("No agents connected.")
+                print(RED + "[!] No agents connected." + RESET)
             else:
-                print("\nConnected agents:")
+                print(CYAN + "\nConnected agents:" + RESET)
                 for a in live_agents:
-                    print(f"  {a}")
+                    print(f"{YELLOW}  → {a}{RESET}")
             continue
 
         if cmd.startswith("select "):
@@ -71,28 +79,28 @@ def start_cli():
             if agent_id in agents and (time.time() - agents[agent_id]["last_seen"] <= AGENT_TIMEOUT):
                 selected = agent_id
                 last_seen_index = 0
-                print(f"Selected agent: {selected}")
+                print(f"{GREEN}[+] Selected agent: {selected}{RESET}")
             else:
-                print("Invalid or offline agent ID.")
+                print(RED + "[!] Invalid or offline agent ID." + RESET)
             continue
 
         # PUT FILE
         if cmd.startswith("put "):
             if not selected:
-                print("Select an agent first.")
+                print(RED + "[!] Select an agent first." + RESET)
                 continue
             if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print("Selected agent is offline.")
+                print(RED + "[!] Selected agent is offline." + RESET)
                 continue
 
             parts = cmd.split(" ")
             if len(parts) < 3:
-                print("Usage: put <local_path> <remote_filename>")
+                print(RED + "[!] Usage: put <local_path> <remote_filename>" + RESET)
                 continue
 
             local, remote = parts[1], parts[2]
             if not os.path.isfile(local):
-                print("Local file not found.")
+                print(RED + "[!] Local file not found." + RESET)
                 continue
 
             with open(local, "rb") as f:
@@ -100,65 +108,65 @@ def start_cli():
 
             payload = json.dumps({"type": "put", "filename": remote, "data": b64})
             tasks[selected].put(payload)
-            print(f"Uploaded {local} → {remote} (queued for agent)")
+            print(f"{GREEN}[+] Uploaded {local} → {remote} (queued for agent){RESET}")
             continue
 
         # GET FILE
         if cmd.startswith("get "):
             if not selected:
-                print("Select an agent first.")
+                print(RED + "[!] Select an agent first." + RESET)
                 continue
             if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print("Selected agent is offline.")
+                print(RED + "[!] Selected agent is offline." + RESET)
                 continue
 
             remote_path = cmd[len("get "):]
             payload = json.dumps({"type": "get", "path": remote_path})
             tasks[selected].put(payload)
-            print(f"Requested file: {remote_path}")
+            print(f"{GREEN}[+] Requested file: {remote_path}{RESET}")
             continue
 
         # SEND COMMAND
         if cmd.startswith("send "):
             if not selected:
-                print("Select an agent first.")
+                print(RED + "[!] Select an agent first." + RESET)
                 continue
             if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print("Selected agent is offline.")
+                print(RED + "[!] Selected agent is offline." + RESET)
                 continue
 
             command = cmd[len("send "):]
             tasks[selected].put(command)
             output = run_local(command)
-            print(output)
+            print(CYAN + output + RESET)
             results[selected].append({"timestamp": timestamp(), "result": output})
             continue
 
         # HISTORY
         if cmd.lower() == "history":
             if not selected:
-                print("No agent selected.")
+                print(RED + "[!] No agent selected." + RESET)
                 continue
             for entry in results[selected]:
-                print(f"\n[{entry['timestamp']}]")
-                print(entry["result"])
+                print(f"\n{YELLOW}[{entry['timestamp']}] {RESET}")
+                print(CYAN + entry["result"] + RESET)
             continue
 
         # WATCH
         if cmd.lower() == "watch":
             if not selected:
-                print("No agent selected.")
+                print(RED + "[!] No agent selected." + RESET)
                 continue
             if time.time() - agents[selected]["last_seen"] > AGENT_TIMEOUT:
-                print("Selected agent is offline.")
+                print(RED + "[!] Selected agent is offline." + RESET)
                 continue
 
-            print(f"\n--- LIVE RESULT FEED ({selected}) ---\n")
+            print(f"{CYAN}\n--- LIVE RESULT FEED ({selected}) ---{RESET}\n")
             while True:
                 current_results = results[selected]
                 for entry in current_results[last_seen_index:]:
-                    print(f"\n[{entry['timestamp']}]")
-                    print(entry["result"])
+                    print(f"\n{YELLOW}[{entry['timestamp']}] {RESET}")
+                    print(CYAN + entry["result"] + RESET)
                 last_seen_index = len(current_results)
                 time.sleep(0.5)
                 if threading.main_thread().is_alive() is False:
@@ -167,7 +175,7 @@ def start_cli():
 
         # EXIT
         if cmd.lower() == "exit":
-            print("Leaving CLI. Server still running...")
+            print(YELLOW + "Leaving CLI. Server still running..." + RESET)
             break
 
-        print("Unknown command. Type 'help' for a list of commands.")
+        print(RED + "[!] Unknown command. Type 'help' for a list of commands." + RESET)
