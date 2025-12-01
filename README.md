@@ -28,6 +28,7 @@ The project is split across multiple Python modules:
 -   Unique agent IDs
 -   Tracks `last_seen`
 -   Independent queues + history logs
+-   Easily switch between agent sessions
 
 ### **Agents Payloads**
 
