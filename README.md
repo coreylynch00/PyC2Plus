@@ -1,6 +1,6 @@
 # PyC2+
 
-PyC2+ is a modular Python-based Command and Control (C2) framework
+PyC2+ is a Python-based Command and Control (C2) framework
 designed for education and red team operations. It provides a central
 server, REST API backend, interactive operator CLI, and various
 agent payloads.
