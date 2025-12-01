@@ -1,6 +1,6 @@
 #!/bin/bash
 
-C2_SERVER_IP="http://127.0.0.1:80"
+C2_SERVER_IP="http://C2-SERVER-IP:80"
 AUTH="MySecretKey123"
 POLL_INTERVAL=2
 
