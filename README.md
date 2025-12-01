@@ -75,19 +75,6 @@ Downloaded files go users `Downloads` folder.
 
 ------------------------------------------------------------------------
 
-### **Operator CLI**
-
-Commands: 
-- `agents` 
-- `select <id>` 
-- `send <cmd>` 
-- `put <local> <remote>` 
-- `get <remote>` 
-- `history` 
-- `watch`
-
-------------------------------------------------------------------------
-
 ### **Authentication**
 
 Currently uses a hardcoded bearer token in `configs.py`.
