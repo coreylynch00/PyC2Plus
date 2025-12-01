@@ -1,8 +1,8 @@
 import threading
 from flask import Flask
-from routes import create_routes
-from cli import start_cli
-from config import HOST, PORT
+from lib.routes import create_routes
+from lib.cli import start_cli
+from lib.config import HOST, PORT
 import logging, sys
 
 logging.getLogger('werkzeug').disabled = True
