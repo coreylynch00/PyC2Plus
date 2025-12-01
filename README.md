@@ -33,9 +33,9 @@ The project is split across multiple Python modules:
 ### **Agents Payloads**
 
 Stored in `agents/`: 
-- Python (`pyc2+agent.py`) 
-- PowerShell (`pyc2+agent.ps1`) 
-- Bash (`pyc2+agent.sh`)
+- Python (`agent.py`) 
+- PowerShell (`agent.ps1`) 
+- Bash (`agent.sh`)
 
 ------------------------------------------------------------------------
 
